@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wc2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wc2026pass}
+      POSTGRES_DB: ${POSTGRES_DB:-wc2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wc2026}"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./docker/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-wc2026}:${POSTGRES_PASSWORD:-wc2026pass}@db:5432/${POSTGRES_DB:-wc2026}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  app:
+    build: ./app
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -37,20 +37,36 @@ export default function LeagueTournament() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      getMatches(),
-      getMembers(slug),
-      getLeaderboard(slug),
-      getPredictions(slug).catch(() => null),
-    ])
-      .then(([m, mem, lb, pred]) => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const [m, mem, lb, pred] = await Promise.all([
+          getMatches(),
+          getMembers(slug),
+          getLeaderboard(slug),
+          getPredictions(slug).catch(() => null),
+        ]);
+        if (!mounted) return;
         setMatches(m);
         setMembers(mem);
         setEntries(lb);
         setPredictions(pred);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+        setError(null);
+      } catch (e) {
+        if (!mounted) return;
+        setError(e instanceof Error ? e.message : "Failed to load data");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, [slug]);
 
   const winChanceByMember = useMemo(() => {
@@ -91,7 +107,7 @@ export default function LeagueTournament() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <UpcomingMatches matches={matches} members={members} limit={2} />
+      <UpcomingMatches matches={matches} members={members} />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <Stat label={leaders.length > 1 ? "Leaders" : "Leader"}>
@@ -118,6 +134,9 @@ export default function LeagueTournament() {
         <section className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
           <h2 className="mb-3 text-lg font-semibold">Knockout bracket</h2>
           <CompactBracket matches={matches} members={members} />
+          <p className="mt-2 text-[11px] text-text-muted">
+            All times are in Central Time.
+          </p>
         </section>
 
         <div className="min-w-0 lg:col-start-2 lg:row-start-2">

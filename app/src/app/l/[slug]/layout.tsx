@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getLeague, isAdmin, type League } from "@/lib/api";
 import { rememberLeague } from "@/lib/identity";
+import LiveTicker from "@/components/LiveTicker";
 import { PageError } from "@/components/ui";
 
 export default function LeagueLayout({ children }: { children: React.ReactNode }) {
@@ -28,8 +29,8 @@ export default function LeagueLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <header className="border-b border-border bg-surface/80 backdrop-blur-sm px-4 py-3 sticky top-0 z-40 sm:px-6 sm:py-4">
-        <nav className="max-w-5xl mx-auto flex items-center gap-3">
-          <a href={base} className="flex min-w-0 flex-1 items-center gap-2">
+        <nav className="max-w-5xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+          <a href={base} className="flex min-w-0 items-center gap-2">
             <img
               src="/fifa-trophy.png"
               alt=""
@@ -49,7 +50,12 @@ export default function LeagueLayout({ children }: { children: React.ReactNode }
               )}
             </div>
           </a>
-          <div className="flex shrink-0 items-center gap-2">
+
+          <div className="flex justify-center px-1">
+            <LiveTicker />
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2">
             {admin && (
               <a
                 href={`${base}/admin`}

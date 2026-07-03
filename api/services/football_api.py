@@ -3,6 +3,7 @@ import logging
 import httpx
 from config import settings
 from domains.matches.schemas import MatchOut
+from services.bracket_order import sort_knockout_matches
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,7 @@ def _team_info(team: dict | None) -> tuple[str, str]:
     return team.get("name") or "TBD", team.get("tla") or ""
 
 
-async def fetch_matches() -> list[MatchOut]:
-    data = await _get(f"/competitions/{_COMP}/matches")
+def _parse_matches(data: dict) -> list[MatchOut]:
     results: list[MatchOut] = []
     for m in data.get("matches", []):
         score = m.get("score", {})
@@ -70,7 +70,29 @@ async def fetch_matches() -> list[MatchOut]:
                 winner=score.get("winner"),
             )
         )
-    return results
+    return sort_knockout_matches(results)
+
+
+async def fetch_matches_from_api() -> list[MatchOut]:
+    """Pull the full competition match list from football-data.org (sync only)."""
+    data = await _get(f"/competitions/{_COMP}/matches")
+    return _parse_matches(data)
+
+
+async def fetch_matches() -> list[MatchOut]:
+    """Return matches from Postgres; sync from API first if the table is empty."""
+    from db import async_session
+    from services.match_store import load_matches, sync_matches
+
+    async with async_session() as session:
+        matches = await load_matches(session)
+        if matches:
+            return matches
+
+    await sync_matches()
+
+    async with async_session() as session:
+        return await load_matches(session)
 
 
 async def fetch_teams() -> list[dict]:

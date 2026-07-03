@@ -1,4 +1,5 @@
 import type { MatchResult, MemberOut } from "@/lib/api";
+import { sortBracketMatches, fillInferredWinners } from "@/lib/bracket-order";
 
 export const BRACKET_STAGES = [
   "LAST_32",
@@ -20,15 +21,15 @@ export const STAGE_LABELS: Record<string, string> = {
 };
 
 /** Vertical space per leaf slot in the bracket tree (card height + gap) */
-export const UNIT_HEIGHT = 120;
+export const UNIT_HEIGHT = 124;
 
 /** Natural match card height — cards never stretch beyond this */
-export const CARD_HEIGHT = 106;
+export const CARD_HEIGHT = 112;
 
 /** Layout widths — keep the full bracket viewable with less horizontal scroll */
-export const COLUMN_WIDTH = 148;
-export const CONNECTOR_WIDTH = 16;
-export const FINAL_COLUMN_WIDTH = 152;
+export const COLUMN_WIDTH = 188;
+export const CONNECTOR_WIDTH = 24;
+export const FINAL_COLUMN_WIDTH = 192;
 
 export interface MemberStake {
   id: number;
@@ -48,7 +49,16 @@ export function matchesByStage(
   matches: MatchResult[],
   stage: string
 ): MatchResult[] {
-  return sortMatches(matches.filter((m) => m.stage === stage));
+  const stageMatches = matches.filter((m) => m.stage === stage);
+  if (
+    BRACKET_STAGES.includes(stage as BracketStage) ||
+    stage === "THIRD_PLACE"
+  ) {
+    return sortBracketMatches(matches, stage);
+  }
+  return [...stageMatches].sort(
+    (a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime()
+  );
 }
 
 export function memberStakes(

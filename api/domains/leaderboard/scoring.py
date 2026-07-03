@@ -46,6 +46,21 @@ def _format_score(home: int | None, away: int | None) -> str:
     return f"{h}-{a}"
 
 
+def _match_winner_side(m: MatchOut) -> str | None:
+    """Return HOME, AWAY, or None for a draw. Trusts API winner, but uses the
+    scoreline when winner says DRAW yet the goals differ (e.g. VAR correction lag)."""
+    if m.winner == "HOME_TEAM":
+        return "HOME"
+    if m.winner == "AWAY_TEAM":
+        return "AWAY"
+    if m.home_score is not None and m.away_score is not None:
+        if m.home_score > m.away_score:
+            return "HOME"
+        if m.away_score > m.home_score:
+            return "AWAY"
+    return None
+
+
 def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
     wins = draws = losses = match_points = stage_bonus = 0
     goals_for = goals_against = 0
@@ -83,7 +98,8 @@ def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
         if _stage_rank(m.stage) > _stage_rank(furthest):
             furthest = m.stage
 
-        if m.winner == "HOME_TEAM" and is_home:
+        winner_side = _match_winner_side(m)
+        if winner_side == "HOME" and is_home:
             wins += 1
             match_points += 3
             breakdown.append(
@@ -93,7 +109,7 @@ def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
                     category="match",
                 )
             )
-        elif m.winner == "AWAY_TEAM" and is_away:
+        elif winner_side == "AWAY" and is_away:
             wins += 1
             match_points += 3
             breakdown.append(
@@ -103,7 +119,7 @@ def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
                     category="match",
                 )
             )
-        elif m.winner == "DRAW":
+        elif winner_side is None:
             draws += 1
             match_points += 1
             breakdown.append(

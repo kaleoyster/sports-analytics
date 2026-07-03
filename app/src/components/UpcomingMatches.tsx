@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { MatchResult, MemberOut } from "@/lib/api";
 import { memberStakes, type MemberStake } from "@/lib/bracket";
+import { MATCH_TIMEZONE } from "@/lib/datetime";
 import { STAGE_LABELS } from "@/lib/tracker";
 import TeamFlag from "./TeamFlag";
 import { Card } from "./ui";
@@ -9,65 +11,91 @@ import { Card } from "./ui";
 interface UpcomingMatchesProps {
   matches: MatchResult[];
   members: MemberOut[];
-  limit?: number;
 }
 
 function Fixture({
   match,
   stakes,
+  compact,
 }: {
   match: MatchResult;
   stakes: MemberStake[];
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5">
-      <div className="w-16 shrink-0">
-        <p className="text-xs font-medium leading-tight">
+    <div
+      className={`flex items-center gap-2 ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}
+    >
+      <div className="w-11 shrink-0">
+        <p className="text-[11px] font-medium leading-tight">
           {new Date(match.utc_date).toLocaleDateString(undefined, {
             month: "short",
             day: "numeric",
+            timeZone: MATCH_TIMEZONE,
           })}
         </p>
-        <p className="text-[11px] text-text-muted">
+        <p className="text-[10px] text-text-muted">
           {new Date(match.utc_date).toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
+            timeZone: MATCH_TIMEZONE,
           })}
         </p>
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-col gap-0.5 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5 sm:gap-y-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <TeamFlag code={match.home_code} teamName={match.home_team} size={15} />
-            <span className="truncate">{match.home_team}</span>
-          </div>
-          <span className="hidden text-xs text-text-muted sm:inline">v</span>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <TeamFlag code={match.away_code} teamName={match.away_team} size={15} />
-            <span className="truncate">{match.away_team}</span>
-          </div>
+        <div className="flex items-center gap-1 text-xs sm:text-[13px]">
+          <TeamFlag code={match.home_code} teamName={match.home_team} size={14} />
+          <span className="truncate max-w-[4.5rem] sm:max-w-none">
+            {match.home_code || match.home_team}
+          </span>
+          <span className="shrink-0 text-[10px] text-text-muted">v</span>
+          <TeamFlag code={match.away_code} teamName={match.away_team} size={14} />
+          <span className="truncate max-w-[4.5rem] sm:max-w-none">
+            {match.away_code || match.away_team}
+          </span>
         </div>
         {STAGE_LABELS[match.stage] && match.stage !== "GROUP_STAGE" && (
-          <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+          <p className="text-[9px] font-medium uppercase tracking-wide text-text-muted">
             {STAGE_LABELS[match.stage]}
           </p>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center -space-x-1.5">
-        {stakes.map((s) => (
-          <img
-            key={s.id}
-            src={`https://api.dicebear.com/9.x/fun-emoji/svg?seed=${encodeURIComponent(s.avatar_seed)}`}
-            alt={s.name}
-            title={`${s.name} · ${s.pickedHome ? match.home_team : match.away_team}`}
-            width={20}
-            height={20}
-            className="h-5 w-5 rounded-full ring-2 ring-surface"
-          />
-        ))}
-      </div>
+      {stakes.length > 0 && (
+        <div className="flex shrink-0 items-center -space-x-1">
+          {stakes.slice(0, 2).map((s) => (
+            <img
+              key={s.id}
+              src={`https://api.dicebear.com/9.x/fun-emoji/svg?seed=${encodeURIComponent(s.avatar_seed)}`}
+              alt={s.name}
+              title={`${s.name} · ${s.pickedHome ? match.home_team : match.away_team}`}
+              width={18}
+              height={18}
+              className="h-[18px] w-[18px] rounded-full ring-2 ring-surface"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FixtureRow({
+  items,
+  compact,
+}: {
+  items: { match: MatchResult; stakes: MemberStake[] }[];
+  compact?: boolean;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-2 divide-x divide-border">
+      {items.map(({ match, stakes }) => (
+        <Fixture key={match.match_id} match={match} stakes={stakes} compact={compact} />
+      ))}
+      {items.length === 1 && <div className="bg-surface-muted/30" aria-hidden />}
     </div>
   );
 }
@@ -75,27 +103,64 @@ function Fixture({
 export default function UpcomingMatches({
   matches,
   members,
-  limit = 2,
 }: UpcomingMatchesProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const upcoming = matches
-    .filter((m) => m.status !== "FINISHED")
+    .filter(
+      (m) =>
+        m.status === "SCHEDULED" ||
+        m.status === "TIMED" ||
+        m.status === "SUSPENDED"
+    )
     .map((m) => ({ match: m, stakes: memberStakes(m, members) }))
-    .filter((x) => x.stakes.length > 0)
     .sort(
       (a, b) =>
-        new Date(a.match.utc_date).getTime() - new Date(b.match.utc_date).getTime()
-    )
-    .slice(0, limit);
+        new Date(a.match.utc_date).getTime() -
+        new Date(b.match.utc_date).getTime()
+    );
 
   if (upcoming.length === 0) return null;
 
+  const firstRow = upcoming.slice(0, 2);
+  const rest = upcoming.slice(2);
+  const hasMore = rest.length > 0;
+
   return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold text-text-muted">Next games</h2>
-      <Card className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
-        {upcoming.map(({ match, stakes }) => (
-          <Fixture key={match.match_id} match={match} stakes={stakes} />
-        ))}
+    <section className="mx-auto w-full max-w-xl">
+      <div className="mb-1.5 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-text-muted">Next games</h2>
+        <span className="text-[11px] text-text-muted">({upcoming.length})</span>
+        {hasMore && !expanded && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="ml-auto text-xs font-medium text-accent hover:underline"
+          >
+            Show more ({rest.length})
+          </button>
+        )}
+        {expanded && hasMore && (
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="ml-auto text-xs font-medium text-accent hover:underline"
+          >
+            Show less
+          </button>
+        )}
+      </div>
+
+      <Card className="overflow-hidden">
+        <FixtureRow items={firstRow} compact />
+
+        {expanded && hasMore && (
+          <div className="max-h-52 overflow-y-auto border-t border-border divide-y divide-border">
+            {rest.map(({ match, stakes }) => (
+              <Fixture key={match.match_id} match={match} stakes={stakes} compact />
+            ))}
+          </div>
+        )}
       </Card>
     </section>
   );

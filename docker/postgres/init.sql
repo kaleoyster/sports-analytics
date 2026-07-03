@@ -27,3 +27,22 @@ CREATE TABLE IF NOT EXISTS member_teams (
     team_code   VARCHAR(10) NOT NULL,
     team_name   VARCHAR(100) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS matches (
+    match_id    INTEGER PRIMARY KEY,
+    utc_date    TIMESTAMPTZ NOT NULL,
+    status      VARCHAR(20) NOT NULL,
+    stage       VARCHAR(30) NOT NULL,
+    match_group VARCHAR(10),
+    home_team   VARCHAR(100) NOT NULL,
+    home_code   VARCHAR(10) NOT NULL,
+    away_team   VARCHAR(100) NOT NULL,
+    away_code   VARCHAR(10) NOT NULL,
+    home_score  INTEGER,
+    away_score  INTEGER,
+    winner      VARCHAR(15),
+    synced_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_matches_status ON matches (status);
+CREATE INDEX IF NOT EXISTS ix_matches_utc_date ON matches (utc_date);

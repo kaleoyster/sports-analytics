@@ -10,6 +10,7 @@ from db import async_session
 from domains.matches.models import Match
 from domains.matches.schemas import MatchOut
 from services.bracket_order import sort_knockout_matches
+from services.compute_cache import invalidate_compute_cache
 from services.football_api import fetch_matches_from_api
 
 logger = logging.getLogger(__name__)
@@ -94,5 +95,6 @@ async def sync_matches() -> int:
             await session.execute(stmt)
             await session.commit()
 
+        invalidate_compute_cache()
         logger.info("Synced %d matches", len(rows))
         return len(rows)

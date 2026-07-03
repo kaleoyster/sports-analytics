@@ -1,40 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import type { MatchResult, MemberOut } from "@/lib/api";
+import type { MatchProbabilitiesMap, MatchResult, MemberOut } from "@/lib/api";
 import { memberStakes, type MemberStake } from "@/lib/bracket";
 import { MATCH_TIMEZONE } from "@/lib/datetime";
 import { STAGE_LABELS } from "@/lib/tracker";
+import MatchProbBar from "./MatchProbBar";
 import TeamFlag from "./TeamFlag";
 import { Card } from "./ui";
 
 interface UpcomingMatchesProps {
   matches: MatchResult[];
   members: MemberOut[];
+  probabilities?: MatchProbabilitiesMap;
 }
 
 function Fixture({
   match,
   stakes,
+  probabilities,
   compact,
 }: {
   match: MatchResult;
   stakes: MemberStake[];
+  probabilities?: MatchProbabilitiesMap;
   compact?: boolean;
 }) {
+  const probs = probabilities?.get(match.match_id);
   return (
     <div
-      className={`flex items-center gap-2 ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}
+      className={`flex items-center gap-2 ${compact ? "px-2 py-1.5" : "px-3 py-2"}`}
     >
-      <div className="w-11 shrink-0">
-        <p className="text-[11px] font-medium leading-tight">
+      <div className="w-10 shrink-0">
+        <p className="text-[10px] font-medium leading-tight">
           {new Date(match.utc_date).toLocaleDateString(undefined, {
             month: "short",
             day: "numeric",
             timeZone: MATCH_TIMEZONE,
           })}
         </p>
-        <p className="text-[10px] text-text-muted">
+        <p className="text-[9px] text-text-muted">
           {new Date(match.utc_date).toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
@@ -46,17 +51,26 @@ function Fixture({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 text-xs sm:text-[13px]">
           <TeamFlag code={match.home_code} teamName={match.home_team} size={14} />
-          <span className="truncate max-w-[4.5rem] sm:max-w-none">
+          <span className="truncate max-w-[3.5rem] sm:max-w-none">
             {match.home_code || match.home_team}
           </span>
           <span className="shrink-0 text-[10px] text-text-muted">v</span>
           <TeamFlag code={match.away_code} teamName={match.away_team} size={14} />
-          <span className="truncate max-w-[4.5rem] sm:max-w-none">
+          <span className="truncate max-w-[3.5rem] sm:max-w-none">
             {match.away_code || match.away_team}
           </span>
+          {probs && (
+            <MatchProbBar
+              probabilities={probs}
+              homeCode={match.home_code || match.home_team}
+              awayCode={match.away_code || match.away_team}
+              hideLabels
+              className="ml-auto"
+            />
+          )}
         </div>
         {STAGE_LABELS[match.stage] && match.stage !== "GROUP_STAGE" && (
-          <p className="text-[9px] font-medium uppercase tracking-wide text-text-muted">
+          <p className="text-[8px] font-medium uppercase tracking-wide text-text-muted">
             {STAGE_LABELS[match.stage]}
           </p>
         )}
@@ -83,9 +97,11 @@ function Fixture({
 
 function FixtureRow({
   items,
+  probabilities,
   compact,
 }: {
   items: { match: MatchResult; stakes: MemberStake[] }[];
+  probabilities?: MatchProbabilitiesMap;
   compact?: boolean;
 }) {
   if (items.length === 0) return null;
@@ -93,7 +109,13 @@ function FixtureRow({
   return (
     <div className="grid grid-cols-2 divide-x divide-border">
       {items.map(({ match, stakes }) => (
-        <Fixture key={match.match_id} match={match} stakes={stakes} compact={compact} />
+        <Fixture
+          key={match.match_id}
+          match={match}
+          stakes={stakes}
+          probabilities={probabilities}
+          compact={compact}
+        />
       ))}
       {items.length === 1 && <div className="bg-surface-muted/30" aria-hidden />}
     </div>
@@ -103,6 +125,7 @@ function FixtureRow({
 export default function UpcomingMatches({
   matches,
   members,
+  probabilities,
 }: UpcomingMatchesProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -152,12 +175,18 @@ export default function UpcomingMatches({
       </div>
 
       <Card className="overflow-hidden">
-        <FixtureRow items={firstRow} compact />
+        <FixtureRow items={firstRow} probabilities={probabilities} compact />
 
         {expanded && hasMore && (
           <div className="max-h-52 overflow-y-auto border-t border-border divide-y divide-border">
             {rest.map(({ match, stakes }) => (
-              <Fixture key={match.match_id} match={match} stakes={stakes} compact />
+              <Fixture
+                key={match.match_id}
+                match={match}
+                stakes={stakes}
+                probabilities={probabilities}
+                compact
+              />
             ))}
           </div>
         )}

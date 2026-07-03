@@ -55,6 +55,16 @@ export interface MatchResult {
   winner: string | null;
 }
 
+export interface MatchProbabilities {
+  match_id: number;
+  home_win_pct: number;
+  draw_pct: number;
+  away_win_pct: number;
+  penalties_pct: number;
+}
+
+export type MatchProbabilitiesMap = Map<number, MatchProbabilities>;
+
 export interface Team {
   id: number;
   name: string;
@@ -98,6 +108,33 @@ export interface PredictionResult {
   simulations: number;
   remaining_matches: number;
   predictions: MemberPrediction[];
+}
+
+export interface MatchPredictionRecord {
+  match_id: number;
+  utc_date: string;
+  stage: string;
+  home_code: string;
+  away_code: string;
+  home_team: string;
+  away_team: string;
+  predicted_winner: "HOME" | "AWAY" | "DRAW";
+  predicted_pct: number;
+  actual_winner: "HOME" | "AWAY" | "DRAW";
+  correct: boolean;
+  home_win_pct: number;
+  draw_pct: number;
+  away_win_pct: number;
+  home_score: number;
+  away_score: number;
+}
+
+export interface ModelAccuracy {
+  total: number;
+  correct: number;
+  incorrect: number;
+  accuracy_pct: number;
+  records: MatchPredictionRecord[];
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -157,6 +194,19 @@ function adminHeaders(slug: string): Record<string, string> {
 
 export const getMatches = (status?: string) =>
   apiFetch<MatchResult[]>(`/matches${status ? `?status=${status}` : ""}`);
+
+export const getMatchProbabilities = () =>
+  apiFetch<MatchProbabilities[]>("/matches/probabilities");
+
+export const getModelAccuracy = () =>
+  apiFetch<ModelAccuracy>("/matches/accuracy");
+
+export function matchProbabilitiesMap(
+  items: MatchProbabilities[]
+): MatchProbabilitiesMap {
+  return new Map(items.map((p) => [p.match_id, p]));
+}
+
 export const getTeams = () => apiFetch<Team[]>("/teams");
 
 /* --------------------------------- Leagues ------------------------------------ */

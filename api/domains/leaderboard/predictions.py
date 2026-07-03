@@ -3,10 +3,14 @@ from copy import deepcopy
 
 from domains.leaderboard.scoring import build_leaderboard
 from domains.leaderboard.schemas import MemberPrediction, PredictionResult
+from domains.matches.result import match_winner_side
 from domains.matches.schemas import MatchOut
 
+PREDICTION_SNAPSHOT_VERSION = 2
+
 FINISHED = "FINISHED"
-UNPLAYED = {"SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "SUSPENDED"}
+UNPLAYED = {"SCHEDULED", "TIMED"}
+PLAYED = {"IN_PLAY", "PAUSED", "FINISHED", "SUSPENDED"}
 LIVE_STATUSES = {"IN_PLAY", "PAUSED"}
 KNOCKOUT_STAGES = {
     "LAST_32",
@@ -91,11 +95,12 @@ def _team_record(code: str, matches: list[MatchOut]) -> tuple[int, int, int, int
                 goals_for += m.away_score
                 goals_against += m.home_score
 
-        if m.winner == "HOME_TEAM" and is_home:
+        side = match_winner_side(m)
+        if side == "HOME" and is_home:
             wins += 1
-        elif m.winner == "AWAY_TEAM" and is_away:
+        elif side == "AWAY" and is_away:
             wins += 1
-        elif m.winner == "DRAW":
+        elif side is None:
             draws += 1
         else:
             losses += 1
@@ -249,13 +254,24 @@ def compute_all_match_probabilities(
     return results
 
 
-def _pre_match_strength(code: str, match: MatchOut, all_matches: list[MatchOut]) -> float:
-    """Team strength using only matches finished before this one."""
+def _matches_before_kickoff(
+    match: MatchOut, all_matches: list[MatchOut]
+) -> list[MatchOut]:
+    """Finished matches that were known before this fixture kicked off."""
     cutoff = match.utc_date
-    prior_matches = [
-        m for m in all_matches
-        if m.status == FINISHED and m.utc_date < cutoff
+    mid = match.match_id
+    return [
+        m
+        for m in all_matches
+        if m.status == FINISHED
+        and m.match_id != match.match_id
+        and (m.utc_date < cutoff or (m.utc_date == cutoff and m.match_id < mid))
     ]
+
+
+def _pre_match_strength(code: str, match: MatchOut, all_matches: list[MatchOut]) -> float:
+    """Team strength using only matches finished before this one kicked off."""
+    prior_matches = _matches_before_kickoff(match, all_matches)
     prior = _PRIOR_STRENGTH.get(code, _DEFAULT_PRIOR)
     wins, draws, losses, gd = _team_record(code, prior_matches)
     games = wins + draws + losses
@@ -264,6 +280,49 @@ def _pre_match_strength(code: str, match: MatchOut, all_matches: list[MatchOut])
     current_form = max(0.3, (wins * 3 + draws) / games + gd * 0.05)
     form_weight = min(games / _FORM_GAMES_FULL, 1.0) * 0.8
     return prior * (1 - form_weight) + current_form * form_weight
+
+
+def compute_pre_kickoff_probabilities(
+    m: MatchOut, matches: list[MatchOut]
+) -> dict[str, float | str] | None:
+    """Same formula as the bracket prob bar before kickoff — no live-score boost."""
+    if not m.home_code or not m.away_code:
+        return None
+
+    as_of = _matches_before_kickoff(m, matches)
+    scheduled = m.model_copy(
+        update={
+            "status": "SCHEDULED",
+            "home_score": None,
+            "away_score": None,
+            "winner": None,
+        }
+    )
+    probs = compute_match_probabilities(scheduled, as_of)
+    if not probs:
+        return None
+
+    home_pct = float(probs["home_win_pct"])
+    draw_pct = float(probs["draw_pct"])
+    away_pct = float(probs["away_win_pct"])
+
+    if home_pct >= away_pct and home_pct >= draw_pct:
+        predicted_winner = "HOME"
+        predicted_pct = home_pct
+    elif away_pct >= home_pct and away_pct >= draw_pct:
+        predicted_winner = "AWAY"
+        predicted_pct = away_pct
+    else:
+        predicted_winner = "DRAW"
+        predicted_pct = draw_pct
+
+    return {
+        "home_win_pct": home_pct,
+        "draw_pct": draw_pct,
+        "away_win_pct": away_pct,
+        "predicted_winner": predicted_winner,
+        "predicted_pct": round(predicted_pct, 1),
+    }
 
 
 def compute_model_accuracy(matches: list[MatchOut]) -> dict:
@@ -275,39 +334,28 @@ def compute_model_accuracy(matches: list[MatchOut]) -> dict:
 
     records: list[dict] = []
     for m in finished:
-        sh = _pre_match_strength(m.home_code, m, matches)
-        sa = _pre_match_strength(m.away_code, m, matches)
-        knockout = _is_knockout(m.stage)
-        draw_weight = _knockout_regulation_draw_prob(sh, sa) if knockout else 0.35
-        total = sh + sa + draw_weight
-
-        home_pct = sh / total * 100
-        draw_pct = draw_weight / total * 100
-        away_pct = sa / total * 100
-
-        if knockout:
-            pen_home_share = (draw_weight / total) * (sh / (sh + sa))
-            pen_away_share = (draw_weight / total) * (sa / (sh + sa))
-            home_pct = (sh / total + pen_home_share) * 100
-            away_pct = (sa / total + pen_away_share) * 100
-            draw_pct = 0.0
-
-        if home_pct >= away_pct and home_pct >= draw_pct:
-            predicted_winner = "HOME"
-            predicted_pct = home_pct
-        elif away_pct >= home_pct and away_pct >= draw_pct:
-            predicted_winner = "AWAY"
-            predicted_pct = away_pct
+        if (
+            m.pre_kickoff_predicted_winner is not None
+            and m.pre_kickoff_home_pct is not None
+            and m.pre_kickoff_away_pct is not None
+        ):
+            predicted_winner = m.pre_kickoff_predicted_winner
+            predicted_pct = m.pre_kickoff_predicted_pct or 0.0
+            home_pct = m.pre_kickoff_home_pct
+            draw_pct = m.pre_kickoff_draw_pct or 0.0
+            away_pct = m.pre_kickoff_away_pct
         else:
-            predicted_winner = "DRAW"
-            predicted_pct = draw_pct
+            probs = compute_pre_kickoff_probabilities(m, matches)
+            if not probs:
+                continue
+            predicted_winner = str(probs["predicted_winner"])
+            predicted_pct = float(probs["predicted_pct"])
+            home_pct = float(probs["home_win_pct"])
+            draw_pct = float(probs["draw_pct"])
+            away_pct = float(probs["away_win_pct"])
 
-        if m.winner == "HOME_TEAM":
-            actual_winner = "HOME"
-        elif m.winner == "AWAY_TEAM":
-            actual_winner = "AWAY"
-        else:
-            actual_winner = "DRAW"
+        side = match_winner_side(m)
+        actual_winner = side if side else "DRAW"
 
         correct = predicted_winner == actual_winner
 
@@ -353,9 +401,10 @@ def _is_eliminated(code: str, matches: list[MatchOut]) -> bool:
         is_away = m.away_code == code
         if not is_home and not is_away:
             continue
-        if m.winner == "HOME_TEAM" and is_away:
+        side = match_winner_side(m)
+        if side == "HOME" and is_away:
             return True
-        if m.winner == "AWAY_TEAM" and is_home:
+        if side == "AWAY" and is_home:
             return True
     return False
 

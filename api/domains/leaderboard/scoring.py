@@ -1,4 +1,5 @@
 from domains.leaderboard.schemas import TeamScore, LeaderboardEntry, ScoreLineItem
+from domains.matches.result import match_winner_side as _match_winner_side
 from domains.matches.schemas import MatchOut
 
 STAGE_LABELS = {
@@ -36,21 +37,6 @@ def _format_score(home: int | None, away: int | None) -> str:
     h = home if home is not None else "–"
     a = away if away is not None else "–"
     return f"{h}-{a}"
-
-
-def _match_winner_side(m: MatchOut) -> str | None:
-    """Return HOME, AWAY, or None for a draw. Trusts API winner, but uses the
-    scoreline when winner says DRAW yet the goals differ (e.g. VAR correction lag)."""
-    if m.winner == "HOME_TEAM":
-        return "HOME"
-    if m.winner == "AWAY_TEAM":
-        return "AWAY"
-    if m.home_score is not None and m.away_score is not None:
-        if m.home_score > m.away_score:
-            return "HOME"
-        if m.away_score > m.home_score:
-            return "AWAY"
-    return None
 
 
 def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { getModelAccuracy, type ModelAccuracy, type MatchPredictionRecord } from "@/lib/api";
-import { STAGE_LABELS } from "@/lib/tracker";
 import TeamFlag from "./TeamFlag";
 import { Card } from "./ui";
 
@@ -46,6 +45,10 @@ function PredictionRow({ record }: { record: MatchPredictionRecord }) {
       : record.actual_winner === "AWAY"
         ? record.away_code
         : "Draw";
+  const splitLabel =
+    record.draw_pct > 0
+      ? `${Math.round(record.home_win_pct)}-${Math.round(record.draw_pct)}-${Math.round(record.away_win_pct)}`
+      : `${Math.round(record.home_win_pct)}-${Math.round(record.away_win_pct)}`;
 
   return (
     <div className="flex items-center gap-2 py-1.5 border-b border-border/50 last:border-0">
@@ -61,8 +64,9 @@ function PredictionRow({ record }: { record: MatchPredictionRecord }) {
       </div>
       <div className="shrink-0 text-right">
         <p className="text-[9px] text-text-muted">
-          Predicted <span className="font-semibold text-text">{predictedTeam}</span>{" "}
-          <span className="tabular-nums">{record.predicted_pct}%</span>
+          <span className="font-semibold tabular-nums text-text">{splitLabel}</span>
+          {" · "}
+          <span className="font-semibold text-text">{predictedTeam}</span>
         </p>
         {!record.correct && (
           <p className="text-[8px] text-danger">
@@ -102,7 +106,7 @@ export default function ModelAccuracyPanel() {
       <Card className="p-2">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Recent predictions
+            Recent picks
           </p>
           {recentRecords.length > 8 && (
             <button

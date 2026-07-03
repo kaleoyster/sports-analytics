@@ -41,6 +41,13 @@ CREATE TABLE IF NOT EXISTS matches (
     home_score  INTEGER,
     away_score  INTEGER,
     winner      VARCHAR(15),
+    pred_home_pct REAL,
+    pred_draw_pct REAL,
+    pred_away_pct REAL,
+    pred_winner VARCHAR(10),
+    pred_pct    REAL,
+    pred_locked_at TIMESTAMPTZ,
+    pred_snapshot_version INTEGER,
     synced_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

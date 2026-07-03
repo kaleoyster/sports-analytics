@@ -2,6 +2,7 @@ import time
 import logging
 import httpx
 from config import settings
+from domains.matches.result import infer_winner_from_score
 from domains.matches.schemas import MatchOut
 from services.bracket_order import sort_knockout_matches
 
@@ -67,7 +68,7 @@ def _parse_matches(data: dict) -> list[MatchOut]:
                 away_code=away_code,
                 home_score=ft.get("home"),
                 away_score=ft.get("away"),
-                winner=score.get("winner"),
+                winner=infer_winner_from_score(score),
             )
         )
     return sort_knockout_matches(results)

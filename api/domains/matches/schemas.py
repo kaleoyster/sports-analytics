@@ -14,6 +14,13 @@ class MatchOut(BaseModel):
     home_score: int | None = None
     away_score: int | None = None
     winner: str | None = None
+    pre_kickoff_home_pct: float | None = None
+    pre_kickoff_draw_pct: float | None = None
+    pre_kickoff_away_pct: float | None = None
+    pre_kickoff_predicted_winner: str | None = None
+    pre_kickoff_predicted_pct: float | None = None
+    pre_kickoff_locked: bool = False
+    pred_snapshot_version: int | None = None
 
 
 class MatchProbabilitiesOut(BaseModel):

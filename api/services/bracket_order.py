@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from domains.matches.result import match_winner_side
+
 CODE_ALIASES = {"JPN": "JAP", "PRY": "PAR", "ZAF": "RSA"}
 
 NAME_TO_CODE = {
@@ -187,17 +189,7 @@ def _sort_stage_matches(matches: list, stage: str) -> list:
 def _match_winner_info(match) -> dict[str, str] | None:
     if match.status != "FINISHED":
         return None
-    side: str | None = None
-    if match.winner == "HOME_TEAM":
-        side = "HOME"
-    elif match.winner == "AWAY_TEAM":
-        side = "AWAY"
-    elif (
-        match.home_score is not None
-        and match.away_score is not None
-        and match.home_score != match.away_score
-    ):
-        side = "HOME" if match.home_score > match.away_score else "AWAY"
+    side = match_winner_side(match)
     if not side:
         return None
     if side == "HOME":

@@ -12,12 +12,14 @@ from domains.members.router import router as members_router
 from domains.matches.router import router as matches_router
 from domains.leaderboard.router import router as leaderboard_router
 from services.match_sync import run_match_sync_loop
+from services.schema_migrations import ensure_match_prediction_columns
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ensure_match_prediction_columns(engine)
 
     sync_task = asyncio.create_task(run_match_sync_loop())
     try:

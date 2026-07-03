@@ -29,51 +29,57 @@ export default function LeagueLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <header className="border-b border-border bg-surface/80 backdrop-blur-sm px-4 py-3 sticky top-0 z-40 sm:px-6 sm:py-4">
-        <nav className="max-w-5xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
-          <a href={base} className="flex min-w-0 items-center gap-2">
-            <img
-              src="/fifa-trophy.png"
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 shrink-0 object-contain"
-            />
-            <div className="min-w-0">
-              <span className="block text-sm font-bold tracking-tight text-accent sm:hidden">
-                WC 2026
-              </span>
-              <span className="hidden text-base font-bold tracking-tight text-accent sm:block">
-                FIFA World Cup 2026
-              </span>
-              {league && (
-                <span className="block truncate text-xs text-text-muted">{league.name}</span>
-              )}
-            </div>
-          </a>
+        <nav className="max-w-5xl mx-auto flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+            <a href={base} className="flex min-w-0 items-center gap-2">
+              <img
+                src="/fifa-trophy.png"
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 object-contain"
+              />
+              <div className="min-w-0">
+                <span className="block text-sm font-bold tracking-tight text-accent sm:hidden">
+                  WC 2026
+                </span>
+                <span className="hidden text-base font-bold tracking-tight text-accent sm:block">
+                  FIFA World Cup 2026
+                </span>
+                {league && (
+                  <span className="block truncate text-xs text-text-muted">{league.name}</span>
+                )}
+              </div>
+            </a>
 
-          <div className="flex justify-center px-1">
-            <LiveTicker />
+            <div className="hidden justify-center px-1 sm:flex">
+              <LiveTicker />
+            </div>
+
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              {admin && (
+                <a
+                  href={`${base}/admin`}
+                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-muted hover:bg-surface-muted transition"
+                >
+                  Admin
+                </a>
+              )}
+              <a
+                href={`${base}/join`}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  league?.picks_locked
+                    ? "bg-surface-muted text-text-muted pointer-events-none"
+                    : "bg-accent text-white hover:bg-accent-hover"
+                }`}
+              >
+                {league?.picks_locked ? "Locked" : "Join"}
+              </a>
+            </div>
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2">
-            {admin && (
-              <a
-                href={`${base}/admin`}
-                className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-muted hover:bg-surface-muted transition"
-              >
-                Admin
-              </a>
-            )}
-            <a
-              href={`${base}/join`}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                league?.picks_locked
-                  ? "bg-surface-muted text-text-muted pointer-events-none"
-                  : "bg-accent text-white hover:bg-accent-hover"
-              }`}
-            >
-              {league?.picks_locked ? "Locked" : "Join"}
-            </a>
+          <div className="flex justify-center sm:hidden">
+            <LiveTicker />
           </div>
         </nav>
         {league?.picks_locked && (

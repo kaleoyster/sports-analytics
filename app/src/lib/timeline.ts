@@ -1,15 +1,6 @@
 import type { MatchResult, MemberOut } from "@/lib/api";
 import { STAGE_LABELS, matchWinnerSide } from "@/lib/tracker";
 
-const STAGE_BONUS: Record<string, number> = {
-  LAST_16: 5,
-  LAST_32: 5,
-  QUARTER_FINALS: 3,
-  SEMI_FINALS: 5,
-  THIRD_PLACE: 2,
-  FINAL: 8,
-};
-
 export interface TimelineEvent {
   timestamp: string;
   matchId: number;
@@ -30,7 +21,6 @@ export function buildTimeline(
   members: MemberOut[]
 ): TimelineEvent[] {
   const events: TimelineEvent[] = [];
-  const seenStageBonus = new Set<string>();
 
   const finishedMatches = matches
     .filter((m) => m.status === "FINISHED")
@@ -100,26 +90,6 @@ export function buildTimeline(
             description: `${pick.team_name} lost to ${opponent} ${score}`,
           });
         }
-
-        const bonusKey = `${member.name}-${pick.team_code}-${match.stage}`;
-        const bonus = STAGE_BONUS[match.stage];
-        if (bonus && !seenStageBonus.has(bonusKey)) {
-          seenStageBonus.add(bonusKey);
-          events.push({
-            timestamp: match.utc_date,
-            matchId: match.match_id,
-            memberName: member.name,
-            avatarSeed: member.avatar_seed,
-            teamCode: pick.team_code,
-            teamName: pick.team_name,
-            opponent: "",
-            score: "",
-            stage,
-            type: "stage_bonus",
-            points: bonus,
-            description: `${pick.team_name} reached the ${stage}`,
-          });
-        }
       }
     }
   }
@@ -153,7 +123,6 @@ export function buildCompactTimeline(
   members: MemberOut[]
 ): CompactTimelineEvent[] {
   const events: CompactTimelineEvent[] = [];
-  const seenStage = new Set<string>();
 
   const finishedMatches = matches
     .filter((m) => m.status === "FINISHED")
@@ -225,25 +194,6 @@ export function buildCompactTimeline(
         description,
         members: memberRefs,
       });
-
-      const bonus = STAGE_BONUS[match.stage];
-      const stageKey = `${side.code}-${match.stage}`;
-      if (bonus && match.stage !== "LAST_32" && !seenStage.has(stageKey)) {
-        seenStage.add(stageKey);
-        events.push({
-          timestamp: match.utc_date,
-          matchId: match.match_id,
-          teamCode: side.code,
-          teamName: side.teamName,
-          opponent: "",
-          score: "",
-          stage,
-          type: "stage_bonus",
-          points: bonus,
-          description: `${side.teamName} reached the ${stage}`,
-          members: memberRefs,
-        });
-      }
     }
   }
 

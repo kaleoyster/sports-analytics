@@ -9,6 +9,7 @@ from domains.leaderboard.scoring import build_leaderboard
 from domains.leaderboard.predictions import simulate_predictions
 from domains.leagues.deps import get_league
 from domains.members.models import League, Member
+from services.compute_cache import get_cached, matches_fingerprint
 from services.football_api import fetch_matches
 
 router = APIRouter(prefix="/leagues/{slug}/leaderboard", tags=["leaderboard"])
@@ -63,4 +64,9 @@ async def get_predictions(
     ]
 
     matches = await fetch_matches()
-    return simulate_predictions(members, matches)
+    fp = matches_fingerprint(matches)
+    cache_key = f"predictions:{league.slug}:{fp}:{len(members)}"
+    return get_cached(
+        cache_key,
+        lambda: simulate_predictions(members, matches),
+    )

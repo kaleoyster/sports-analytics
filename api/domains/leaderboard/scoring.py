@@ -1,14 +1,6 @@
 from domains.leaderboard.schemas import TeamScore, LeaderboardEntry, ScoreLineItem
 from domains.matches.schemas import MatchOut
 
-STAGE_BONUS = {
-    "LAST_16": 5,
-    "QUARTER_FINALS": 3,
-    "SEMI_FINALS": 5,
-    "THIRD_PLACE": 2,
-    "FINAL": 8,
-}
-
 STAGE_LABELS = {
     "LAST_16": "Round of 16",
     "QUARTER_FINALS": "Quarter-finals",
@@ -62,10 +54,9 @@ def _match_winner_side(m: MatchOut) -> str | None:
 
 
 def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
-    wins = draws = losses = match_points = stage_bonus = 0
+    wins = draws = losses = match_points = 0
     goals_for = goals_against = 0
     furthest = "GROUP_STAGE"
-    seen_stages: set[str] = set()
     team_name = team_code
     breakdown: list[ScoreLineItem] = []
 
@@ -139,19 +130,6 @@ def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
                 )
             )
 
-        if m.stage != "GROUP_STAGE" and m.stage not in seen_stages:
-            bonus = STAGE_BONUS.get(m.stage, 0)
-            if bonus:
-                stage_bonus += bonus
-                breakdown.append(
-                    ScoreLineItem(
-                        label=f"Reached {_stage_name(m.stage)}",
-                        points=bonus,
-                        category="stage",
-                    )
-                )
-            seen_stages.add(m.stage)
-
     goal_difference = goals_for - goals_against
 
     return TeamScore(
@@ -164,8 +142,8 @@ def _score_team(team_code: str, matches: list[MatchOut]) -> TeamScore:
         goals_against=goals_against,
         goal_difference=goal_difference,
         match_points=match_points,
-        stage_bonus=stage_bonus,
-        total_points=match_points + stage_bonus,
+        stage_bonus=0,
+        total_points=match_points,
         furthest_stage=furthest,
         breakdown=breakdown,
     )

@@ -1,5 +1,27 @@
 /** @type {import('next').NextConfig} */
-const proxyTarget = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
+
+function normalizeProxyTarget(raw) {
+  if (!raw) return "";
+  let url = raw.trim().replace(/\/$/, "");
+  if (!url) return "";
+
+  // Vercel requires destination to start with http:// or https://
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  try {
+    new URL(url);
+    return url;
+  } catch {
+    console.warn(
+      `Invalid API_PROXY_TARGET "${raw}" — proxy disabled. Use https://your-app.up.railway.app`
+    );
+    return "";
+  }
+}
+
+const proxyTarget = normalizeProxyTarget(process.env.API_PROXY_TARGET);
 
 const nextConfig = {
   images: {

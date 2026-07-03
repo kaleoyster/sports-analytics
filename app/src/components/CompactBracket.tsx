@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { MatchResult, MemberOut } from "@/lib/api";
+import type { MatchProbabilitiesMap, MatchResult, MemberOut } from "@/lib/api";
 import {
   BRACKET_STAGES,
   CARD_HEIGHT,
@@ -39,6 +39,7 @@ const CONNECTOR_W = 24;
 interface CompactBracketProps {
   matches: MatchResult[];
   members: MemberOut[];
+  probabilities?: MatchProbabilitiesMap;
 }
 
 function fill(matches: MatchResult[], slots: number): (MatchResult | null)[] {
@@ -109,6 +110,7 @@ function RoundColumn({
   roundIndex,
   roundMatches,
   members,
+  probabilities,
   leftSlots,
   height,
   highlight,
@@ -117,6 +119,7 @@ function RoundColumn({
   roundIndex: number;
   roundMatches: (MatchResult | null)[];
   members: MemberOut[];
+  probabilities?: MatchProbabilitiesMap;
   leftSlots: number;
   height: number;
   highlight?: boolean;
@@ -143,6 +146,7 @@ function RoundColumn({
             <BracketMatchCard
               match={match}
               stakes={match ? memberStakes(match, members) : []}
+              probabilities={match ? probabilities?.get(match.match_id) : undefined}
             />
           </div>
         ))}
@@ -156,11 +160,13 @@ function MobileRoundList({
   stage,
   roundMatches,
   members,
+  probabilities,
   highlight,
 }: {
   stage: string;
   roundMatches: MatchResult[];
   members: MemberOut[];
+  probabilities?: MatchProbabilitiesMap;
   highlight?: boolean;
 }) {
   return (
@@ -172,12 +178,14 @@ function MobileRoundList({
       >
         {STAGE_LABEL[stage]}
       </h3>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {roundMatches.map((match, i) => (
           <BracketMatchCard
             key={`${match.match_id}-${i}`}
             match={match}
             stakes={memberStakes(match, members)}
+            probabilities={probabilities?.get(match.match_id)}
+            compact
           />
         ))}
       </div>
@@ -185,7 +193,11 @@ function MobileRoundList({
   );
 }
 
-export default function CompactBracket({ matches, members }: CompactBracketProps) {
+export default function CompactBracket({
+  matches,
+  members,
+  probabilities,
+}: CompactBracketProps) {
   const isWide = useMediaQuery("(min-width: 768px)");
   const visibleCount = isWide ? 2 : 1;
 
@@ -306,6 +318,7 @@ export default function CompactBracket({ matches, members }: CompactBracketProps
               roundIndex={0}
               roundMatches={leftFilled}
               members={members}
+              probabilities={probabilities}
               leftSlots={leftSlots}
               height={treeHeight}
               highlight={left.stage === "FINAL"}
@@ -322,6 +335,7 @@ export default function CompactBracket({ matches, members }: CompactBracketProps
               roundIndex={1}
               roundMatches={rightFilled}
               members={members}
+              probabilities={probabilities}
               leftSlots={leftSlots}
               height={treeHeight}
               highlight={right.stage === "FINAL"}
@@ -334,6 +348,7 @@ export default function CompactBracket({ matches, members }: CompactBracketProps
             stage={left.stage}
             roundMatches={left.matches}
             members={members}
+            probabilities={probabilities}
             highlight={left.stage === "FINAL"}
           />
         </div>
@@ -347,6 +362,7 @@ export default function CompactBracket({ matches, members }: CompactBracketProps
           <BracketMatchCard
             match={thirdPlace}
             stakes={memberStakes(thirdPlace!, members)}
+            probabilities={probabilities?.get(thirdPlace!.match_id)}
           />
         </div>
       )}

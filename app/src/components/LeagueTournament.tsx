@@ -4,15 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   getLeaderboard,
+  getMatchProbabilities,
   getMatches,
   getMembers,
   getPredictions,
+  matchProbabilitiesMap,
   type LeaderboardEntry,
+  type MatchProbabilitiesMap,
   type MatchResult,
   type MemberOut,
   type PredictionResult,
 } from "@/lib/api";
 import CompactBracket from "@/components/CompactBracket";
+import ModelAccuracyPanel from "@/components/ModelAccuracy";
 import StatLeaders from "@/components/StatLeaders";
 import TimelineFeed from "@/components/TimelineFeed";
 import UpcomingMatches from "@/components/UpcomingMatches";
@@ -33,6 +37,7 @@ export default function LeagueTournament() {
   const [members, setMembers] = useState<MemberOut[]>([]);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [predictions, setPredictions] = useState<PredictionResult | null>(null);
+  const [probabilities, setProbabilities] = useState<MatchProbabilitiesMap>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,17 +46,19 @@ export default function LeagueTournament() {
 
     async function load() {
       try {
-        const [m, mem, lb, pred] = await Promise.all([
+        const [m, mem, lb, pred, probs] = await Promise.all([
           getMatches(),
           getMembers(slug),
           getLeaderboard(slug),
           getPredictions(slug).catch(() => null),
+          getMatchProbabilities().catch(() => []),
         ]);
         if (!mounted) return;
         setMatches(m);
         setMembers(mem);
         setEntries(lb);
         setPredictions(pred);
+        setProbabilities(matchProbabilitiesMap(probs));
         setError(null);
       } catch (e) {
         if (!mounted) return;
@@ -107,7 +114,7 @@ export default function LeagueTournament() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <UpcomingMatches matches={matches} members={members} />
+      <UpcomingMatches matches={matches} members={members} probabilities={probabilities} />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <Stat label={leaders.length > 1 ? "Leaders" : "Leader"}>
@@ -133,14 +140,15 @@ export default function LeagueTournament() {
 
         <section className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
           <h2 className="mb-3 text-lg font-semibold">Knockout bracket</h2>
-          <CompactBracket matches={matches} members={members} />
+          <CompactBracket matches={matches} members={members} probabilities={probabilities} />
           <p className="mt-2 text-[11px] text-text-muted">
             All times are in Central Time.
           </p>
         </section>
 
-        <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-2 space-y-4">
           <TimelineFeed matches={matches} members={members} limit={8} compact />
+          <ModelAccuracyPanel />
         </div>
       </div>
     </div>

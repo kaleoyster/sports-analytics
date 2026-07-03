@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://wc2026:wc2026pass@localhost:5432/wc2026"
     database_ssl: bool = False
     match_sync_interval_seconds: int = 120
+    compute_cache_ttl_seconds: int = 120
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

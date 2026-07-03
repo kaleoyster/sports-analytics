@@ -1,4 +1,10 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function resolveApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  return "http://localhost:8000";
+}
+
+export const API_URL = resolveApiUrl();
 
 export type LeaderboardSort = "points" | "goals_for" | "goals_against";
 
@@ -98,7 +104,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, init);
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    if (body.includes("<!DOCTYPE html>") || body.includes("next-error-h1")) {
+      throw new Error(
+        `API ${res.status}: Request hit the Next.js app instead of the Railway API. ` +
+          `On Vercel, set API_PROXY_TARGET to your Railway URL (e.g. https://xxx.up.railway.app) ` +
+          `and redeploy with cache cleared. Current API_URL: ${API_URL}`
+      );
+    }
+    throw new Error(`API ${res.status}: ${body.slice(0, 300)}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
